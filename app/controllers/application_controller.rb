@@ -66,7 +66,7 @@ class ApplicationController < ActionController::API
     render json: 'Not Authorized', status: 401
   end
 
-  def saml_settings(level)
+  def saml_settings(level = '')
     settings = SAML::SettingsService.instance.saml_settings
 
     # This will get moved out of here and will be set per application
