@@ -66,7 +66,15 @@ class ApplicationController < ActionController::API
     render json: 'Not Authorized', status: 401
   end
 
-  def saml_settings
-    SAML::SettingsService.instance.saml_settings
+  def saml_settings(level)
+    settings = SAML::SettingsService.instance.saml_settings
+
+    # This will get moved out of here and will be set per application
+    # To require just a username and password, use "authentication" as the context;
+    # for full identity proofing, use the LOA3 url
+    settings.authn_context = 'authentication'
+    settings.authn_context = 'http://idmanagement.gov/ns/assurance/loa/3' if level == LOA::THREE
+
+    settings
   end
 end

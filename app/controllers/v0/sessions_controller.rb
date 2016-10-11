@@ -4,8 +4,9 @@ module V0
     skip_before_action :authenticate, only: [:new, :saml_callback]
 
     def new
+      level = LOA::THREE if params['level'] == 'high'
       saml_auth_request = OneLogin::RubySaml::Authrequest.new
-      render json: { authenticate_via_get: saml_auth_request.create(saml_settings) }
+      render json: { authenticate_via_get: saml_auth_request.create(saml_settings(level)) }
     end
 
     def show
