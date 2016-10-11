@@ -1,6 +1,8 @@
 # frozen_string_literal: true
+require 'feature_flipper'
 require 'common/exceptions'
 require 'common/client/errors'
+require_dependency 'saml/settings_service'
 
 class ApplicationController < ActionController::API
   include ActionController::HttpAuthentication::Token::ControllerMethods
@@ -29,7 +31,7 @@ class ApplicationController < ActionController::API
         Common::Exceptions::InternalServerError.new(exception)
       end
 
-    render json: { errors: va_exception.errors }, status: va_exception.errors[0].status
+    render json: { errors: va_exception.errors }, status: va_exception.status_code
   end
 
   def log_error(exception)
@@ -62,5 +64,9 @@ class ApplicationController < ActionController::API
   def render_unauthorized
     headers['WWW-Authenticate'] = 'Token realm="Application"'
     render json: 'Not Authorized', status: 401
+  end
+
+  def saml_settings
+    SAML::SettingsService.instance.saml_settings
   end
 end

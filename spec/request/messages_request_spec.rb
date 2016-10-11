@@ -20,9 +20,83 @@ RSpec.describe 'Messages Integration', type: :request do
       VCR.use_cassette("sm/messages/#{user_id}/index") do
         get "/v0/messaging/health/folders/#{inbox_id}/messages"
       end
+
       expect(response).to be_success
       expect(response.body).to be_a(String)
       expect(response).to match_response_schema('messages')
+    end
+
+    context 'when verifying correct filters' do
+      it 'accepts one attribute' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?filter[[subject][eq]]=something"
+          expect(response).to be_success
+        end
+      end
+
+      it 'accepts more than 1 attribute' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          filter = 'filter[[subject][eq]]=something&filter[[sender_name][eq]]=someone'
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?#{filter}"
+          expect(response).to be_success
+        end
+      end
+
+      it 'accepts multiple predicates for a single attribute' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          filter = 'filter[[sent_date][lteq]]=2016-01-01&filter[[sent_date][gteq]]=2016-01-01'
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?#{filter}"
+          expect(response).to be_success
+        end
+      end
+    end
+
+    context 'when verifying incorrect filters' do
+      it 'accepts only permitted attributes' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?filter[[blab][eq]]=1"
+
+          error = JSON.parse(response.body)['errors'].first
+
+          expect(response).not_to be_success
+          expect(error['title']).to eq('Filter not allowed')
+          expect(error['detail']).to eq('"blab" is not allowed')
+        end
+      end
+
+      it 'accepts only permitted operations' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?filter[[sent_date][blah]]=1"
+
+          error = JSON.parse(response.body)['errors'].first
+
+          expect(response).not_to be_success
+          expect(error['title']).to eq('Filter not allowed')
+          expect(error['detail']).to eq('"blah for sent_date" is not allowed')
+        end
+      end
+
+      it 'requires a convertible filter value' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?filter[[sent_date][eq]]=abcd"
+
+          error = JSON.parse(response.body)['errors'].first
+
+          expect(response).not_to be_success
+          expect(error['title']).to eq('Filter not allowed')
+          expect(error['detail']).to eq('"Conversion of abcd for sent_date" is not allowed')
+        end
+      end
+
+      it 'requires a properly formed grammar' do
+        VCR.use_cassette("sm/messages/#{user_id}/index") do
+          get "/v0/messaging/health/folders/#{inbox_id}/messages?filter[[sent_date][]]=1"
+          error = JSON.parse(response.body)['errors'].first
+
+          expect(response).not_to be_success
+          expect(error['title']).to eq('Invalid filters syntax')
+        end
+      end
     end
   end
 
@@ -40,7 +114,7 @@ RSpec.describe 'Messages Integration', type: :request do
     end
   end
 
-  describe '#create' do
+  describe '#create without attachments' do
     let(:message_attributes) { attributes_for(:message).slice(:subject, :category, :recipient_id, :body) }
     let(:params) { { message: message_attributes } }
 
@@ -73,10 +147,8 @@ RSpec.describe 'Messages Integration', type: :request do
 
         errors = JSON.parse(response.body)['errors'].first
 
-        expect(response).to_not be_success
+        expect(response).to have_http_status(:unprocessable_entity)
         expect(errors['title']).to eq("Recipient can't be blank")
-        expect(errors['code']).to eq('100')
-        expect(errors['status']).to eq(422)
       end
 
       it 'requires a body' do
@@ -84,10 +156,8 @@ RSpec.describe 'Messages Integration', type: :request do
 
         errors = JSON.parse(response.body)['errors'].first
 
-        expect(response).to_not be_success
+        expect(response).to have_http_status(:unprocessable_entity)
         expect(errors['title']).to eq("Body can't be blank")
-        expect(errors['code']).to eq('100')
-        expect(errors['status']).to eq(422)
       end
 
       it 'requires a category' do
@@ -95,10 +165,28 @@ RSpec.describe 'Messages Integration', type: :request do
 
         errors = JSON.parse(response.body)['errors'].first
 
-        expect(response).to_not be_success
+        expect(response).to have_http_status(:unprocessable_entity)
         expect(errors['title']).to eq("Category can't be blank")
-        expect(errors['code']).to eq('100')
-        expect(errors['status']).to eq(422)
+      end
+    end
+  end
+
+  describe '#create with attachments' do
+    let(:message_attributes) { attributes_for(:message).slice(:subject, :category, :recipient_id, :body) }
+    let(:attachment_path) { 'spec/support/fixtures/sm_attachment.png' }
+    let(:attachment_type) { 'image/png' }
+    let(:attachment) { Rack::Test::UploadedFile.new(attachment_path, attachment_type) }
+    let(:params) { { message: message_attributes, file: attachment } }
+
+    context 'with valid attributes' do
+      it 'responds to POST #create' do
+        VCR.use_cassette("sm/messages/#{user_id}/create_multipart") do
+          post '/v0/messaging/health/messages', params
+        end
+
+        expect(response).to be_success
+        expect(response.body).to be_a(String)
+        expect(response).to match_response_schema('message_with_attachment')
       end
     end
   end
@@ -130,11 +218,11 @@ RSpec.describe 'Messages Integration', type: :request do
 
         errors = JSON.parse(response.body)['errors'].first
 
-        expect(response).to_not be_success
+        expect(response).to have_http_status(:bad_request)
         expect(errors['title']).to eq('Operation failed')
         expect(errors['detail']).to eq('Message service error')
         expect(errors['code']).to eq('900')
-        expect(errors['status']).to eq(400)
+        expect(errors['status']).to eq('400')
       end
 
       it 'requires a body' do
@@ -143,10 +231,8 @@ RSpec.describe 'Messages Integration', type: :request do
 
         errors = JSON.parse(response.body)['errors'].first
 
-        expect(response).to_not be_success
+        expect(response).to have_http_status(:unprocessable_entity)
         expect(errors['title']).to eq("Body can't be blank")
-        expect(errors['code']).to eq('100')
-        expect(errors['status']).to eq(422)
       end
     end
   end

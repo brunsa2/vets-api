@@ -1,14 +1,23 @@
 # frozen_string_literal: true
 module V0
   class MessagesController < SMController
+    include Filterable
+
+    PERMITTED_FILTERS = {
+      'subject' => %w(eq not_eq),
+      'sender_name' => %w(eq not_eq),
+      'sent_date' => %w(eq lteq gteq)
+    }.freeze
+
     def index
       resource = client.get_folder_messages(params[:folder_id].to_s)
-      raise VA::API::Common::Exceptions::RecordNotFound, params[:folder_id] unless resource.present?
+      raise Common::Exceptions::RecordNotFound, params[:folder_id] unless resource.present?
+      resource = filter? ? resource.find_by(params[:filter]) : resource
       resource = resource.paginate(pagination_params)
 
       render json: resource.data,
              serializer: CollectionSerializer,
-             each_serializer: MessageSerializer,
+             each_serializer: MessagesSerializer,
              meta: resource.metadata
     end
 
@@ -16,21 +25,27 @@ module V0
       message_id = params[:id].try(:to_i)
       response = client.get_message(message_id)
 
-      raise VA::API::Common::Exceptions::RecordNotFound, message_id unless response.present?
+      raise Common::Exceptions::RecordNotFound, message_id unless response.present?
 
       render json: response,
              serializer: MessageSerializer,
+             include: 'attachments',
              meta: response.metadata
     end
 
     def create
       message = Message.new(message_params)
       raise Common::Exceptions::ValidationErrors, message unless message.valid?
-
-      response = client.post_create_message(message_params)
+      response =
+        if request.content_type == 'multipart/form-data'
+          client.post_create_message_with_attachment(message_params.merge(file: params[:file]))
+        else
+          client.post_create_message(message_params)
+        end
 
       render json: response,
              serializer: MessageSerializer,
+             include: 'attachments',
              meta:  {}
     end
 
@@ -42,12 +57,12 @@ module V0
     def thread
       message_id = params[:id].try(:to_i)
       resource = client.get_message_history(message_id)
-      raise VA::API::Common::Exceptions::RecordNotFound, message_id unless resource.present?
+      raise Common::Exceptions::RecordNotFound, message_id unless resource.present?
       resource = resource.paginate(pagination_params)
 
       render json: resource.data,
              serializer: CollectionSerializer,
-             each_serializer: MessageSerializer,
+             each_serializer: MessagesSerializer,
              meta: resource.metadata
     end
 
@@ -63,6 +78,7 @@ module V0
 
       render json: resource,
              serializer: MessageSerializer,
+             include: 'attachments',
              status: :created
     end
 
@@ -83,6 +99,10 @@ module V0
 
     def message_params
       @message_params ||= params.require(:message).permit(:category, :body, :recipient_id, :subject)
+    end
+
+    def filter?
+      can_filter?(Message, PERMITTED_FILTERS)
     end
   end
 end

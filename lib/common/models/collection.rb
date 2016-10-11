@@ -17,10 +17,12 @@ module Common
     alias to_hash attributes
 
     OPERATIONS_MAP = {
-      'eq' => :==,
-      'lteq' => :<=,
-      'gteq' => :>=,
-      'not_eq' => :!=
+      'eq' => '==',
+      'lteq' => '<=',
+      'gteq' => '>=',
+      'not_eq' => '!=',
+      'not_eq' => '!=',
+      'match' => 'match'
     }.with_indifferent_access.freeze
 
     def initialize(klass = Array, data: [], metadata: {}, errors: {})
@@ -83,7 +85,11 @@ module Common
         predicates.all? do |operator, expected_value|
           op = OPERATIONS_MAP.fetch(operator)
           mock_comparator_object.send("#{attribute}=", expected_value)
-          actual_value.send(op, mock_comparator_object.send(attribute))
+          if op == 'match'
+            actual_value.downcase.include?(expected_value.downcase)
+          else
+            actual_value.send(op, mock_comparator_object.send(attribute))
+          end
         end
       end
     end

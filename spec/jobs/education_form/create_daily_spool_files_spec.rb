@@ -11,7 +11,7 @@ RSpec.describe EducationForm::CreateDailySpoolFiles, type: :model, form: :educat
 
   context '#format_application' do
     it 'uses conformant sample data in the tests' do
-      expect(application_1606.form).to match_vets_schema('edu-benefits-schema')
+      expect(application_1606.form).to match_vets_schema('education_benefits')
     end
 
     context 'result tests' do
@@ -30,6 +30,10 @@ RSpec.describe EducationForm::CreateDailySpoolFiles, type: :model, form: :educat
 
       it 'includes the faa flight certificates' do
         expect(subject).to include("FAA Flight Certificates:#{line_break}cert1, cert2#{line_break}")
+      end
+
+      it 'includes the confirmation number' do
+        expect(subject).to include("Confirmation #:  #{application_1606.confirmation_number}")
       end
 
       it "includes the veteran's postal code" do
@@ -92,6 +96,36 @@ RSpec.describe EducationForm::CreateDailySpoolFiles, type: :model, form: :educat
       # read back the written file
       mock_writer.rewind
       expect(mock_writer.read).to include('EDUCATION BENEFIT BEING APPLIED FOR: Chapter 1606')
+    end
+  end
+
+  context '#full_address' do
+    let(:address) { application_1606.open_struct_form.veteranAddress }
+
+    subject { described_class.new.send(:full_address, address) }
+
+    context 'with a nil address' do
+      let(:address) { nil }
+
+      it 'should return the blank string' do
+        expect(subject).to eq('')
+      end
+    end
+
+    context 'with no street2' do
+      it 'should format the address correctly' do
+        expect(subject).to eq("123 MAIN ST\nMILWAUKEE, WI, 53130\nUSA")
+      end
+    end
+
+    context 'with a street2' do
+      before do
+        address.street2 = 'apt 2'
+      end
+
+      it 'should format the address correctly' do
+        expect(subject).to eq("123 MAIN ST\nAPT 2\nMILWAUKEE, WI, 53130\nUSA")
+      end
     end
   end
 end
