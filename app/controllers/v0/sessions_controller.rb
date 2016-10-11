@@ -36,7 +36,9 @@ module V0
 
     def persist_session_and_user!
       @session = Session.new(user_attributes.slice(:uuid))
+      p "session #{@session}"
       @current_user = User.find(@session.uuid) || create_new_user
+      p "current user #{@current_user}"
       @session.save && @current_user.save
     end
 
@@ -74,8 +76,10 @@ module V0
 
     def create_new_user
       if user_attributes[:level_of_assurance] == LOA::ONE
+        p 'LOA::ONE'
         User.new(user_attributes)
       else
+        p 'LOA::THREE'
         Decorators::MviUserDecorator.new(User.new(user_attributes)).create
       end
     end

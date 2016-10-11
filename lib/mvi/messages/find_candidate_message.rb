@@ -19,12 +19,12 @@ module MVI
 
       attr_reader :given_names, :family_name, :birth_date, :ssn, :gender
 
-      def initialize(given_names, family_name, birth_date, ssn, gender = nil)
+      def initialize(given_names, family_name, birth_date, ssn, gender = '')
         @given_names = given_names
         @family_name = family_name
         @birth_date = birth_date
         @ssn = ssn
-        @gender = gender
+        @gender = 'M'
       end
 
       def to_xml
