@@ -23,7 +23,6 @@ module V0
         params[:SAMLResponse], settings: saml_settings
       )
       if @saml_response.is_valid?
-        p "@saml_response: #{@saml_response.inspect}"
         persist_session_and_user!
         render json: @session, status: :created
       else
@@ -37,7 +36,6 @@ module V0
     def persist_session_and_user!
       @session = Session.new(user_attributes.slice(:uuid))
       @current_user = User.find(@session.uuid) || create_new_user
-      p "current_user: #{@current_user.inspect}"
       @session.save && @current_user.save
     end
 
