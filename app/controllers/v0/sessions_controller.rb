@@ -4,9 +4,9 @@ module V0
     skip_before_action :authenticate, only: [:new, :saml_callback]
 
     def new
-      level = LOA::THREE if params['level'] == 'high'
+      loa3 = params['level'] == 'high'
       saml_auth_request = OneLogin::RubySaml::Authrequest.new
-      render json: { authenticate_via_get: saml_auth_request.create(saml_settings(level)) }
+      render json: { authenticate_via_get: saml_auth_request.create(saml_settings loa3 ) }
     end
 
     def show
@@ -22,8 +22,8 @@ module V0
       @saml_response = OneLogin::RubySaml::Response.new(
         params[:SAMLResponse], settings: saml_settings
       )
-
       if @saml_response.is_valid?
+        p "@saml_response: #{@saml_response.inspect}"
         persist_session_and_user!
         render json: @session, status: :created
       else
@@ -36,9 +36,8 @@ module V0
 
     def persist_session_and_user!
       @session = Session.new(user_attributes.slice(:uuid))
-      p "session #{@session}"
       @current_user = User.find(@session.uuid) || create_new_user
-      p "current user #{@current_user}"
+      p "current_user: #{@current_user.inspect}"
       @session.save && @current_user.save
     end
 
@@ -76,10 +75,8 @@ module V0
 
     def create_new_user
       if user_attributes[:level_of_assurance] == LOA::ONE
-        p 'LOA::ONE'
         User.new(user_attributes)
       else
-        p 'LOA::THREE'
         Decorators::MviUserDecorator.new(User.new(user_attributes)).create
       end
     end

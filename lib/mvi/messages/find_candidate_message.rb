@@ -24,7 +24,7 @@ module MVI
         @family_name = family_name
         @birth_date = birth_date
         @ssn = ssn
-        @gender = 'M'
+        @gender = gender
       end
 
       def to_xml
