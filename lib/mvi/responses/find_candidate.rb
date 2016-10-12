@@ -53,6 +53,9 @@ module MVI
         { given: nil, family: nil }
       end
 
+      def get_patient_name(patient)
+        patient.dig(:patient_person, :name)
+      end
       # other_ids can be hash or array of hashes
       def parse_ssn(other_ids)
         other_ids = [other_ids] if other_ids.is_a? Hash
