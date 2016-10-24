@@ -74,7 +74,7 @@ module EducationForm
       logger.error('No applications to write') if structured_data.empty?
       if Rails.env.development? || ENV['EDU_SFTP_HOST'].blank?
         write_files(structured_data: structured_data)
-      else
+      elsif ENV['EDU_ATO_GRANTED']
         Net::SFTP.start(ENV['EDU_SFTP_HOST'], ENV['EDU_SFTP_USER'], password: ENV['EDU_SFTP_PASS']) do |sftp|
           write_files(sftp: sftp, structured_data: structured_data)
         end
