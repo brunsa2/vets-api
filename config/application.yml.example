@@ -26,6 +26,7 @@ MVI_URL: 'http://see.project.readme.for.instructions.org'
 MVI_CLIENT_CERT_PATH: '/fake/client/cert/path'
 MVI_CLIENT_KEY_PATH: '/fake/client/key/path'
 MOCK_MVI_SERVICE: 'true'
+EVSS_SAMPLE_CLAIMANT_USER: '{"uuid": "b2fab2b5-6af0-45e1-a9e2-394347af91ef", "first_name": "Jane","last_name": "Doe","edipi": "1105051936","participant_id": "123456789", "ssn": "796123607"}'
 STAGING_EMAIL: 'true'
 
 # For CORS requests; separate multiple origins with a comma

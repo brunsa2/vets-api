@@ -6,9 +6,10 @@ RSpec.describe 'disability Claims management', type: :request do
   let(:session) { Session.create(uuid: user.uuid) }
 
   context 'for a user without evss attrs' do
-    let(:user) { FactoryGirl.create(:user, edipi: nil) }
+    let(:user) { FactoryGirl.create(:mvi_user, edipi: nil) }
 
-    it 'returns a 403' do
+    # pending login/auth being turned back on
+    xit 'returns a 403' do
       get '/v0/disability_claims', nil, 'Authorization' => "Token token=#{session.token}"
       expect(response).to have_http_status(:forbidden)
     end
