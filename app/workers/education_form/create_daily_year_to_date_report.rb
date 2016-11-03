@@ -74,6 +74,8 @@ module EducationForm
       end
 
       return unless FeatureFlipper.send_email?
+      # TODO: remove next line when education benefits goes live
+      return unless FeatureFlipper.staging_email?
       YearToDateReportMailer.build(filename).deliver_now
     end
   end
