@@ -89,8 +89,8 @@ class ApplicationController < ActionController::API
     settings = SAML::SettingsService.instance.saml_settings
     # TODO: 'level' should be its own class with proper validation
     level = LOA::MAPPING.invert[params[:level]&.to_i]
-    settings.authn_context = level || LOA::MAPPING.invert[1]
-    settings
+    authn_context = { 'authn_context' => level || LOA::MAPPING.invert[1] }
+    OneLogin::RubySaml::Settings.new(settings.merge(authn_context))
   end
 
   def pagination_params

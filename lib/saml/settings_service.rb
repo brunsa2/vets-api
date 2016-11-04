@@ -10,7 +10,9 @@ module SAML
     attr_reader :saml_settings
 
     def initialize
-      @saml_settings ||= fetch_idp_metadata
+      @saml_settings = fetch_idp_metadata
+      @saml_settings = convert_to_hash
+      @saml_settings.freeze
     end
 
     private
@@ -34,6 +36,12 @@ module SAML
     def fetch_idp_metadata
       parser = OneLogin::RubySaml::IdpMetadataParser.new
       parser.parse_remote(SAML_CONFIG['metadata_url'], true, settings: settings)
+    end
+
+    def convert_to_hash
+      hash = {}
+      @saml_settings.instance_variables.each {|var| hash[var.to_s.delete("@")] = @saml_settings.instance_variable_get(var) }
+      hash
     end
   end
 end
