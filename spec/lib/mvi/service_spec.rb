@@ -75,7 +75,7 @@ describe MVI::Service do
         allow(message).to receive(:to_xml).and_return(invalid_xml)
         VCR.use_cassette('mvi/find_candidate/invalid') do
           expect(Rails.logger).to receive(:error).with(/mvi find_candidate invalid request structure:/)
-          expect { subject.find_candidate(message) }.to raise_error(MVI::InvalidRequestError)
+          expect { subject.find_candidate(message) }.to raise_error(MVI::Errors::InvalidRequestError)
         end
       end
     end
@@ -86,7 +86,7 @@ describe MVI::Service do
         allow(message).to receive(:to_xml).and_return(invalid_xml)
         VCR.use_cassette('mvi/find_candidate/failure') do
           expect(Rails.logger).to receive(:error).with(/mvi find_candidate request failure/)
-          expect { subject.find_candidate(message) }.to raise_error(MVI::RequestFailureError)
+          expect { subject.find_candidate(message) }.to raise_error(MVI::Errors::RequestFailureError)
         end
       end
     end
@@ -95,7 +95,7 @@ describe MVI::Service do
       it 'should raise a request failure error' do
         allow(message).to receive(:to_xml).and_return('<nobeuno></nobeuno>')
         VCR.use_cassette('mvi/find_candidate/five_hundred') do
-          expect { subject.find_candidate(message) }.to raise_error(MVI::HTTPError)
+          expect { subject.find_candidate(message) }.to raise_error(MVI::Errors::HTTPError)
         end
       end
     end
@@ -118,7 +118,7 @@ describe MVI::Service do
       end
       it 'raises an MVI::RecordNotFound error' do
         VCR.use_cassette('mvi/find_candidate/no_subject') do
-          expect { subject.find_candidate(message) }.to raise_error(MVI::RecordNotFound)
+          expect { subject.find_candidate(message) }.to raise_error(MVI::Errors::RecordNotFound)
         end
       end
     end
@@ -128,17 +128,17 @@ describe MVI::Service do
         VCR.use_cassette('mvi/find_candidate/internal_server_error') do
           expect(Rails.logger).to receive(:error).with('MVI fault code: env:Server').once
           expect(Rails.logger).to receive(:error).with('MVI fault string: Internal Error (from server)').once
-          expect { subject.find_candidate(message) }.to raise_error(MVI::HTTPError, 'MVI internal server error')
+          expect { subject.find_candidate(message) }.to raise_error(MVI::Errors::HTTPError, 'MVI internal server error')
         end
       end
     end
   end
 
-  describe MVI::RecordNotFound do
+  describe MVI::Errors::RecordNotFound do
     let(:query_json) { File.read('spec/support/mvi/query.json') }
     let(:xml) { '<env:Envelope></env:Envelope>' }
     let(:response) { instance_double('MVI::Responses::FindCandidate') }
-    subject { MVI::RecordNotFound.new('an error message', response) }
+    subject { MVI::Errors::RecordNotFound.new('an error message', response) }
 
     before(:each) do
       allow(response).to receive(:query).and_return(File.read('spec/support/mvi/query.json'))

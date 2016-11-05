@@ -1,6 +1,8 @@
 # frozen_string_literal: true
-require 'savon'
-require_relative 'responses/find_candidate'
+require 'mvi/errors/errors'
+require 'mvi/responses/find_candidate'
+require 'mvi/middleware/request/soap'
+require 'mvi/middleware/response/soap'
 
 module MVI
   # Wrapper for the MVI (Master Veteran Index) Service. vets.gov has access
@@ -38,11 +40,11 @@ module MVI
     end
 
     def find_candidate(message)
-      faraday_response = call(OPERATIONS[:find_candidate], message.to_xml)
+      faraday_response = connection.post '', message.to_xml, { soapaction: OPERATIONS[:find_candidate] }
       response = MVI::Responses::FindCandidate.new(faraday_response)
       invalid_request_handler('find_candidate', response.original_response) if response.invalid?
       request_failure_handler('find_candidate', response.original_response) if response.failure?
-      raise MVI::RecordNotFound.new('MVI subject missing from response body', response) unless response.body
+      raise MVI::Errors::RecordNotFound.new('MVI subject missing from response body', response) unless response.body
       response.body
     rescue Faraday::ConnectionFailed => e
       Rails.logger.error "MVI find_candidate connection failed: #{e.message}"
@@ -52,55 +54,21 @@ module MVI
     private
 
     def connection
-      @conn ||= Faraday.new(MVI::Service.options)
-    end
-
-    def call(operation, body)
-      response = connection.post '' do |request|
-        request.headers['Date'] = Time.now.utc.strftime('%a, %d %b %Y %H:%M:%S GMT')
-        request.headers['Content-Length'] = body.bytesize.to_s
-        request.headers['Content-Type'] = 'text/xml;charset=UTF-8'
-        request.headers['SOAPAction'] = operation
-        request.body = body
+      @conn ||= Faraday.new(MVI::Service.options) do |faraday|
+        faraday.use MVI::Middleware::Request::Soap
+        faraday.use MVI::Middleware::Response::Soap
+        faraday.adapter  :httpclient
       end
-      unless response.status == 200
-        Rails.logger.error response.body
-        raise MVI::HTTPError.new('MVI HTTP call failed', response.status)
-      end
-      response
     end
 
     def invalid_request_handler(operation, xml)
       Rails.logger.error "mvi #{operation} invalid request structure: #{xml}"
-      raise MVI::InvalidRequestError
+      raise MVI::Errors::InvalidRequestError
     end
 
     def request_failure_handler(operation, xml)
       Rails.logger.error "mvi #{operation} request failure: #{xml}"
-      raise MVI::RequestFailureError
-    end
-  end
-  class ServiceError < StandardError
-  end
-  class RequestFailureError < MVI::ServiceError
-  end
-  class InvalidRequestError < MVI::ServiceError
-  end
-  class HTTPError < MVI::ServiceError
-    attr_accessor :code
-
-    def initialize(message = nil, code = nil)
-      super(message)
-      @code = code
-    end
-  end
-  class RecordNotFound < StandardError
-    attr_accessor :query, :original_response
-
-    def initialize(message = nil, response = nil)
-      super(message)
-      @query = response.query
-      @original_response = response.original_response
+      raise MVI::Errors::RequestFailureError
     end
   end
 end

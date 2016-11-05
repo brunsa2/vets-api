@@ -27,6 +27,7 @@ module MVI
       GENDER_XPATH = 'patientPerson/administrativeGenderCode/@code'
       DOB_XPATH = 'patientPerson/birthTime/@value'
       SSN_XPATH = 'patientPerson/asOtherIDs'
+      NAME_XPATH = 'patientPerson/name'
 
       def initialize(response)
         super(response)
@@ -50,7 +51,7 @@ module MVI
       private
 
       def get_patient_name(patient)
-        locate_element(patient, 'patientPerson/name')
+        locate_element(patient, NAME_XPATH)
       end
 
       # name can be a hash or an array of hashes with extra unneeded details
