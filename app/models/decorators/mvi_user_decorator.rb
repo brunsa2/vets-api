@@ -15,7 +15,7 @@ class Decorators::MviUserDecorator
   end
 
   def create
-    raise Common::Exceptions::ValidationErrors, @user unless @user.valid?
+    raise Common::Exceptions::ValidationErrors, @user unless @user.valid?(:loa3_user)
     message = create_message
     response = @mvi_service.find_candidate(message)
     user_with_mvi_attributes(response)
